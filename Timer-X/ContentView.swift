@@ -15,7 +15,6 @@ struct ContentView: View {
     @State var currentDateString = "Today"
     @State var currentDateDouble = 1.0
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-//        .map() { $0.timeIntervalSince(Date().addingTimeInterval(-20)) }
         .map() { $0.timeIntervalSince(Date()) }
 
     @State var subscriptions = Set<AnyCancellable>()
@@ -23,7 +22,6 @@ struct ContentView: View {
 
 
 
-    // in the end I want a countdown
     
     var body: some View {
         VStack{
@@ -55,18 +53,10 @@ struct ContentView: View {
 func timerFactory(timerLength: Double) -> Publishers.Map<Publishers.Autoconnect<Timer.TimerPublisher>, Double> {
     let now = Date()
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-//        .prefix(while: { (Date().addingTimeInterval(30) + $0) > 0.0 })
         .map { $0.timeIntervalSince(now)}
         .map { round(timerLength - $0)}
     return timer
 }
-
-//extension Double {
-//    func roundDouble() -> Double {
-//        var roundedNumber =
-//        return 0.1
-//    }
-//}
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
