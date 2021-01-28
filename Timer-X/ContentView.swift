@@ -19,6 +19,8 @@ struct ContentView: View {
         .map() { $0.timeIntervalSince(Date()) }
 
     @State var subscriptions = Set<AnyCancellable>()
+    @State var cancellable: Cancellable?
+
 
 
     // in the end I want a countdown
@@ -26,18 +28,23 @@ struct ContentView: View {
     var body: some View {
         VStack{
             
-            Text("timeLeft is: \(30 - timeLeft)")
+            Text("timeLeft is: \(timeLeft)")
+                .font(.headline)
                 .padding()
 
-            Button("Reset") {
-                let timer = timerFactory()
+            Button("Start Timer") {
+                let timer = timerFactory(timerLength: 5)
                 
-                timer
-                    .sink() { date in
-                        timeLeft = date
-                    }.store(in: &subscriptions)
-                
-                print("reset button hit")
+                cancellable = timer
+                    .sink() { timeRemaining in
+                        // NOTE: cancel the timer when under 0
+                        if timeRemaining > 0 {
+                            timeLeft = timeRemaining
+                        } else {
+                        cancellable?.cancel()
+                        timeLeft = 0
+                        }
+                    }
             }
         }
     }
@@ -46,12 +53,20 @@ struct ContentView: View {
     
 }
 
-func timerFactory() -> Publishers.Map<Publishers.Autoconnect<Timer.TimerPublisher>, TimeInterval> {
+func timerFactory(timerLength: Double) -> Publishers.Map<Publishers.Autoconnect<Timer.TimerPublisher>, TimeInterval> {
     let now = Date()
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
         .map { $0.timeIntervalSince(now)}
+        .map { round(timerLength - $0)}
     return timer
 }
+
+//extension Double {
+//    func roundDouble() -> Double {
+//        var roundedNumber =
+//        return 0.1
+//    }
+//}
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
