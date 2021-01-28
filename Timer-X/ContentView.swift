@@ -31,20 +31,18 @@ struct ContentView: View {
             Text("timeLeft is: \(timeLeft)")
                 .font(.headline)
                 .padding()
-
-            Button("Start Timer") {
-                let timer = timerFactory(timerLength: 5)
+            
+            Button("timer with completion to finish") {
+                let timer = timerFactory(timerLength: 10)
                 
-                cancellable = timer
-                    .sink() { timeRemaining in
-                        // NOTE: cancel the timer when under 0
-                        if timeRemaining > 0 {
-                            timeLeft = timeRemaining
-                        } else {
-                        cancellable?.cancel()
-                        timeLeft = 0
-                        }
-                    }
+                timer
+                    .prefix(while: { $0 > 0.0 })
+                    .sink(receiveCompletion: {
+                        print("Completed with: \($0)")
+                        timeLeft = 0.0
+                    }, receiveValue: {
+                        timeLeft = $0
+                    }).store(in: &subscriptions)
             }
         }
     }
@@ -53,9 +51,11 @@ struct ContentView: View {
     
 }
 
-func timerFactory(timerLength: Double) -> Publishers.Map<Publishers.Autoconnect<Timer.TimerPublisher>, TimeInterval> {
+
+func timerFactory(timerLength: Double) -> Publishers.Map<Publishers.Autoconnect<Timer.TimerPublisher>, Double> {
     let now = Date()
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+//        .prefix(while: { (Date().addingTimeInterval(30) + $0) > 0.0 })
         .map { $0.timeIntervalSince(now)}
         .map { round(timerLength - $0)}
     return timer
