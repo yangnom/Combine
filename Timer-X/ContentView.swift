@@ -42,56 +42,40 @@ struct ContentView: View {
                     }, receiveValue: {
                         timeLeft = $0
                     }).store(in: &subscriptions)
-            }
+            }.padding()
             
-            // this is trying to iterate over *several* times to make timers with
-            // *in succession*
-            Button("Three timers in a row") {
+            
+            Button("Several timers in a row") {
+                let firstSet = 5.0
+                var arrayOfTimesPublisher: [Double] = [3, 5, 7]
+                let runningTimer = CurrentValueSubject<Double, Never>(firstSet)
                 
-                let arrayOfTimesPublisher = [60, 30, 20.0]
-                let taps = PassthroughSubject<Void, Never>()
-                
-                    
-                    let timer = timerFactory(timerLength: 10)
-                    timer
-                        .print()
-                        .prefix(while: { $0 > 0.0 })
-                        .sink(receiveCompletion: {
-                            print("Completed with: \($0)")
-                            timeLeft = 0.0
-                            taps.send()
-                          
-                            // need a function that does all this publisher / sink
-                            // maybe use a traililng closure to start each next timer
-                            let timer2 = timerFactory(timerLength: 5)
+                runningTimer
+                    .sink(receiveValue: {
+                        let timer = timerFactory(timerLength: $0)
+                        
+                        timer
+                            .prefix(while: { $0 > 0.0 })
+                            .sink(receiveCompletion: { _ in
                                 
-                            timer2
-                                .print()
-                                .prefix(while: { $0 > 0.0 })
-                                .sink(receiveCompletion: {
-                                    print("Finished with: \($0)")
+                                if arrayOfTimesPublisher.count > 0 {
+                                    let nextSet = arrayOfTimesPublisher.removeFirst()
+                                    timeLeft = nextSet
+                                    runningTimer.send(nextSet)
+                                } else {
+                                    // end of all timers action(s)
                                     timeLeft = 0.0
-                                }, receiveValue: {
-                                    timeLeft = $0
-                                })
-                                .store(in: &subscriptions)
-                            
-                        }, receiveValue: {
-                            timeLeft = $0
-                        }).store(in: &subscriptions)
-                
-            }
-            .padding()
+                                }
+                                
+                            }, receiveValue: { timeLeft = $0 }).store(in: &subscriptions)
+                    }).store(in: &subscriptions)
+            }.padding()
             
-            // If I can run a function that starts a timer then
-            // I can more easily nest it into completion calls for a
-            // for loop over an array
-            Button("Use a function") {
-                
-                startATimer(with: 10)
+            // It would be nice to have a function that takes in an array of Doubles
+            // and a finishing closure (for when all timers are done)
+            Button("Timer(s) made by running a function") {
                 
             }
-            .padding()
         }
     }
 }
@@ -116,11 +100,11 @@ func timerFactoryNoAuto(timerLength: Double) -> Publishers.MakeConnectable<Publi
 }
 
 func startATimer(with timerLength: Double) {
-//    var cancellable: Cancellable?
+    //    var cancellable: Cancellable?
     var subscriptions = Set<AnyCancellable>()
     
     let timer = timerFactory(timerLength: timerLength)
-
+    
     timer
         .print()
         .prefix(while: { $0 > 0.0 })
