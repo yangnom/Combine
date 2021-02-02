@@ -74,14 +74,15 @@ struct ContentView: View {
             // It would be nice to have a function that takes in an array of Doubles
             // and a finishing closure (for when all timers are done)
             Button("Timer(s) made by running a function") {
-                
+                startTimers(with: [10, 5, 3], subscriptions: subscriptions) { time in
+                    timeLeft = time
+                }
             }
         }
     }
 }
 
-// TODO: I really want an array of values that can turn into timers
-// of varying timer lengths that start when the previous has ended
+// makes a timer publisher with a Double input
 func timerFactory(timerLength: Double) -> Publishers.Map<Publishers.Autoconnect<Timer.TimerPublisher>, Double> {
     let now = Date()
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -90,28 +91,31 @@ func timerFactory(timerLength: Double) -> Publishers.Map<Publishers.Autoconnect<
     return timer
 }
 
-func timerFactoryNoAuto(timerLength: Double) -> Publishers.MakeConnectable<Publishers.Map<Timer.TimerPublisher, Double>> {
-    let now = Date()
-    let timer = Timer.publish(every: 1, on: .main, in: .common)
-        .map { $0.timeIntervalSince(now)}
-        .map { round(timerLength - $0)}
-        .makeConnectable()
-    return timer
-}
-
-func startATimer(with timerLength: Double) {
-    //    var cancellable: Cancellable?
-    var subscriptions = Set<AnyCancellable>()
+// probably can do something cleaner with  subscriptions but
+// until I understand them better, this will work
+func startTimers(with timerLengths: [Double], subscriptions: Set<AnyCancellable>, closure: @escaping (Double) -> ()) {
+    var subscriptions = subscriptions
+    var arrayOfTimesPublisher = timerLengths
+    let runningTimer = CurrentValueSubject<Double, Never>(arrayOfTimesPublisher.removeFirst())
     
-    let timer = timerFactory(timerLength: timerLength)
-    
-    timer
-        .print()
-        .prefix(while: { $0 > 0.0 })
-        .sink(receiveCompletion: {
-            print("Finished with: \($0)")
-        }, receiveValue: {
-            print($0)
+    runningTimer
+        .sink(receiveValue: {
+            let timer = timerFactory(timerLength: $0)
+            
+            timer
+                .print()
+                .prefix(while: { $0 > 0.0 })
+                .sink(receiveCompletion: { _ in
+                    
+                    if arrayOfTimesPublisher.count > 0 {
+                        let nextSet = arrayOfTimesPublisher.removeFirst()
+                        runningTimer.send(nextSet)
+                    } else {
+                        // end of all timers action(s)
+                        closure(0.0)
+                    }
+                    
+                }, receiveValue: { closure($0) }).store(in: &subscriptions)
         }).store(in: &subscriptions)
 }
 
